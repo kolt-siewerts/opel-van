@@ -30,6 +30,24 @@ img {
   transition: opacity 0.3s ease;
 }
 
+@keyframes move-dash {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.009);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.animate-move-dash {
+  border-style: dashed;
+  animation: move-dash 1s linear infinite;
+}
+
+
 /* :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;

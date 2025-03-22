@@ -13,7 +13,8 @@ export default function ImageEditor() {
   });
   const [size, setSize] = useState<number>(100);
   const [loading, setLoading] = useState<boolean>(false);
-  const [transparentColor, setTransparentColor] = useState<string>("#000000"); // Default to black
+  const [transparentColor, setTransparentColor] = useState<string>("#ffffff"); // Default to white
+  const [isDragging, setIsDragging] = useState<boolean>(false); // Track dragging state
   const imgRef = useRef<HTMLImageElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -79,7 +80,8 @@ export default function ImageEditor() {
       : { r: 0, g: 0, b: 0 };
   };
 
-  const bindLogoDrag = useDrag(({ delta: [dx, dy] }) => {
+  const bindLogoDrag = useDrag(({ active, delta: [dx, dy] }) => {
+    setIsDragging(active); // Update dragging state
     setPosition((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
   });
 
@@ -136,7 +138,7 @@ export default function ImageEditor() {
           ? "Drag to move, slide to resize"
           : "Promote Your Business"}
       </h1>
-      <p className="text-gray-400 max-w-4/5 mt-3">
+      <p className="text-gray-400 text-center max-w-4/5 mt-3">
         Quis cillum elit ullamco reprehenderit. Aliqua officia nisi deserunt eu
         tempor pariatur. Lorem laboris magna adipisicing culpa consectetur
         commodo dolor sit sunt dolore sit deserunt in. Reprehenderit eiusmod ut
@@ -151,7 +153,11 @@ export default function ImageEditor() {
           <div
             {...bindLogoDrag()}
             {...bindLogoPinch()}
-            className="absolute cursor-move"
+            className={`absolute ${
+              isDragging
+                ? "cursor-grabbing border-1 border-gray-500 animate-move-dash"
+                : "cursor-grab"
+            }`}
             style={{
               left: position.x,
               top: position.y,
@@ -168,7 +174,7 @@ export default function ImageEditor() {
         )}
       </div>
       {processedLogo ? (
-        <div className="flex flex-col items-center gap-3">
+        <div className="flex items-center gap-3">
           <label className="text-gray-600 text-sm font-medium">
             Resize Logo
           </label>
@@ -210,7 +216,7 @@ export default function ImageEditor() {
         <button
           onClick={exportImage}
           disabled={!processedLogo}
-          className="text-black px-8 py-3 rounded-full hover:bg-green-400 font-bold transition disabled:bg-gray-200 disabled:text-gray-600 disabled:cursor-not-allowed border cursor-pointer"
+          className="text-black px-8 py-3 rounded-full hover:bg-green-400 font-bold transition disabled:bg-gray-200 disabled:text-gray-500 disabled:opacity-75 disabled:cursor-not-allowed border cursor-pointer"
         >
           Export Image
         </button>
