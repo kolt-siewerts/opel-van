@@ -1,10 +1,13 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useDrag, usePinch } from "react-use-gesture";
 import ChevronRightIcon from "./ChevronRightIcon";
 
 const STATIC_CAR_IMAGE = "/src/assets/van.webp";
 
+type Step = 1 | 2 | 3;
+
 export default function ImageEditor() {
+  const [currentStep, setCurrentStep] = useState<Step>(1);
   const [logoImage, setLogoImage] = useState<string | null>(null);
   const [processedLogo, setProcessedLogo] = useState<string | null>(null);
   const [position, setPosition] = useState<{ x: number; y: number }>({
@@ -18,11 +21,21 @@ export default function ImageEditor() {
   const imgRef = useRef<HTMLImageElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
+  // Process image whenever transparentColor or logoImage changes
+  useEffect(() => {
+    if (logoImage) {
+      processImage(logoImage);
+    }
+  }, [transparentColor, logoImage]);
+
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => processImage(reader.result as string);
+    reader.onload = () => {
+      setLogoImage(reader.result as string);
+      setCurrentStep(2); // Move to step 2 after upload
+    };
     reader.readAsDataURL(file);
   };
 
@@ -63,7 +76,6 @@ export default function ImageEditor() {
       }
 
       ctx.putImageData(imageData, 0, 0);
-      setLogoImage(imageSrc);
       setProcessedLogo(canvas.toDataURL("image/png"));
       setLoading(false);
     };
@@ -131,32 +143,70 @@ export default function ImageEditor() {
     };
   };
 
+  // Step titles and descriptions
+  const stepConfig = {
+    1: {
+      title: "Promote Your Business",
+      description: "Start by uploading your company logo to place on the van.",
+    },
+    2: {
+      title: "Customize Your Logo",
+      description: "Adjust the transparency and size of your logo.",
+    },
+    3: {
+      title: "Export Your Design",
+      description: "Download your customized van design.",
+    },
+  };
+
   return (
-    <div className="flex flex-col items-center p-16 text-black min-h-screen">
+    <div className="flex flex-col items-center p-14 text-black min-h-screen">
+      {/* Step indicator */}
+      <div className="flex items-center justify-center mb-10">
+        {[1, 2, 3].map((step) => (
+          <div key={step} className="flex items-center">
+            <div
+              className={`size-8 rounded-full flex items-center justify-center ${
+                currentStep >= step
+                  ? "bg-[#fafd1e] text-black"
+                  : "bg-gray-200 text-gray-500"
+              }`}
+            >
+              {step}
+            </div>
+            {step < 3 && (
+              <div
+                className={`w-16 h-1 ${
+                  currentStep > step ? "bg-[#fafd1e]" : "bg-gray-200"
+                }`}
+              />
+            )}
+          </div>
+        ))}
+      </div>
+
       <h1 className="text-5xl text-center tracking-wide mb-4">
-        {processedLogo
-          ? "Drag to move, slide to resize"
-          : "Promote Your Business"}
+        {stepConfig[currentStep].title}
       </h1>
-      <p className="text-center max-w-4/5 mt-3">
-        Quis cillum elit ullamco reprehenderit. Aliqua officia nisi deserunt eu
-        tempor pariatur. Lorem laboris magna adipisicing culpa consectetur
-        commodo dolor sit sunt dolore sit deserunt in. Reprehenderit eiusmod ut
-        qui eiusmod adipisicing ipsum commodo labore laboris dolore fugiat do
-        sit. Anim qui et pariatur nulla excepteur.
+      <p className="text-center max-w-4/5 mt-3 mb-8">
+        {stepConfig[currentStep].description}
       </p>
 
-      {loading && <p className="text-gray-400 text-sm">Processing logo...</p>}
-      <div className="relative w-full max-w-2xl overflow-hidden mt-16">
+      {/* {loading && <p className="text-gray-400 text-sm">Processing logo...</p>} */}
+
+      {/* Show car image on all steps */}
+      <div className="relative w-full max-w-2xl overflow-hidden mt-6">
         <img ref={imgRef} src={STATIC_CAR_IMAGE} alt="Car" className="w-full" />
-        {processedLogo && (
+        {processedLogo && currentStep > 1 && (
           <div
-            {...bindLogoDrag()}
-            {...bindLogoPinch()}
+            {...(currentStep === 2 ? bindLogoDrag() : {})}
+            {...(currentStep === 2 ? bindLogoPinch() : {})}
             className={`absolute ${
-              isDragging
+              isDragging && currentStep === 2
                 ? "cursor-grabbing border-1 border-gray-500 animate-move-dash"
-                : "cursor-grab"
+                : currentStep === 2
+                ? "cursor-grab"
+                : ""
             }`}
             style={{
               left: position.x,
@@ -173,54 +223,87 @@ export default function ImageEditor() {
           </div>
         )}
       </div>
-      {processedLogo ? (
-        <div className="flex items-center gap-3">
-          <label className="text-gray-600 text-sm font-medium">
-            Resize Logo
+
+      {/* Step 1: Upload logo */}
+      {currentStep === 1 && (
+        <div className="mt-8">
+          <label className="cursor-pointer bg-[#fafd1e] text-black px-8 py-4 rounded-full hover:bg-yellow-300 transition text-lg font-bold flex items-center gap-2">
+            <ChevronRightIcon />
+            <span>Upload Your Logo</span>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleLogoUpload}
+              className="hidden"
+            />
           </label>
-          <input
-            type="range"
-            min="50"
-            max="200"
-            value={size}
-            onChange={(e) => setSize(Number(e.target.value))}
-            className="w-40 cursor-ew-resize appearance-none bg-gray-200 rounded-lg h-2 my-2 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <div className="text-sm text-gray-500">{size}px</div>
-        </div>
-      ) : (
-        <div className="flex items-center gap-4">
-          <label className="text-gray-400">Choose The Transparent Color:</label>
-          <input
-            type="color"
-            value={transparentColor}
-            onChange={(e) => setTransparentColor(e.target.value)}
-            className="w-10 h-10"
-          />
         </div>
       )}
 
-      <div className="flex items-center gap-3 mt-6">
-        <label className="cursor-pointer bg-[#fafd1e] text-black pe-8 ps-6 py-2 rounded-full hover:bg-gray-200 transition">
-          <div className="flex gap-1">
-            <ChevronRightIcon />
-            <span className="font-bold my-auto">Upload Your Image</span>
+      {/* Step 2: Customize logo */}
+      {currentStep === 2 && (
+        <div className="flex flex-col gap-4 w-full max-w-md">
+          <div className="flex justify-center items-center gap-4">
+            <label className="text-gray-600 font-medium">
+              Choose the transparent color:
+            </label>
+            <input
+              type="color"
+              value={transparentColor}
+              onChange={(e) => setTransparentColor(e.target.value)}
+              className="w-10 h-10 cursor-pointer"
+            />
           </div>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleLogoUpload}
-            className="hidden"
-          />
-        </label>
-        <button
-          onClick={exportImage}
-          disabled={!processedLogo}
-          className="text-black px-8 py-3 rounded-full hover:bg-green-400 font-bold transition disabled:bg-gray-200 disabled:text-gray-500 disabled:opacity-75 disabled:cursor-not-allowed border cursor-pointer"
-        >
-          Export Image
-        </button>
-      </div>
+
+          <div className="flex justify-center items-center gap-3">
+            <label className="text-gray-600 font-medium">Scale the logo</label>
+            <input
+              type="range"
+              min="50"
+              max="200"
+              value={size}
+              onChange={(e) => setSize(Number(e.target.value))}
+              className="flex-1 cursor-ew-resize appearance-none bg-gray-200 rounded-lg h-2 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <div className="text-sm text-gray-500 w-12">{size}px</div>
+          </div>
+
+          <div className="flex justify-center gap-4 mt-4">
+            <button
+              onClick={() => setCurrentStep(1)}
+              className="text-black px-8 py-3 rounded-full hover:bg-gray-200 font-bold transition border cursor-pointer"
+            >
+              Back
+            </button>
+            <button
+              onClick={() => setCurrentStep(3)}
+              disabled={loading}
+              className="bg-[#fafd1e] text-black px-8 w-1/2 cursor-pointer text-nowrap py-3 rounded-full hover:bg-yellow-300 transition font-bold disabled:bg-gray-300 disabled:text-gray-100"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Step 3: Export image */}
+      {currentStep === 3 && (
+        <div className="flex justify-center gap-4 mt-8">
+          <button
+            onClick={() => setCurrentStep(2)}
+            className="text-black px-8 py-3 rounded-full hover:bg-gray-200 font-bold transition border cursor-pointer"
+          >
+            Back
+          </button>
+          <button
+            onClick={exportImage}
+            className="bg-[#fafd1e] text-black px-14 py-3 rounded-full hover:bg-yellow-300 font-bold transition cursor-pointer"
+          >
+            Export Image
+          </button>
+        </div>
+      )}
+
       <canvas ref={canvasRef} className="hidden" />
     </div>
   );
