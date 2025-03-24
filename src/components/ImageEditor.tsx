@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useDrag, usePinch } from "react-use-gesture";
 import ChevronRightIcon from "./ChevronRightIcon";
 
-const STATIC_CAR_IMAGE = "/src/assets/van.webp";
+const STATIC_CAR_IMAGE = "van.webp";
 
 type Step = 1 | 2 | 3;
 
@@ -87,10 +87,10 @@ export default function ImageEditor() {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
     return result
       ? {
-          r: parseInt(result[1], 16),
-          g: parseInt(result[2], 16),
-          b: parseInt(result[3], 16),
-        }
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16),
+      }
       : { r: 0, g: 0, b: 0 };
   };
 
@@ -169,19 +169,17 @@ export default function ImageEditor() {
         {[1, 2, 3].map((step) => (
           <div key={step} className="flex items-center">
             <div
-              className={`size-8 rounded-full flex items-center justify-center ${
-                currentStep >= step
-                  ? "bg-[#fafd1e] text-black"
-                  : "bg-gray-200 text-gray-500"
-              }`}
+              className={`size-8 rounded-full flex items-center justify-center ${currentStep >= step
+                ? "bg-[#fafd1e] text-black"
+                : "bg-gray-200 text-gray-500"
+                }`}
             >
               {step}
             </div>
             {step < 3 && (
               <div
-                className={`w-16 h-1 ${
-                  currentStep > step ? "bg-[#fafd1e]" : "bg-gray-200"
-                }`}
+                className={`w-16 h-1 ${currentStep > step ? "bg-[#fafd1e]" : "bg-gray-200"
+                  }`}
               />
             )}
           </div>
@@ -202,13 +200,12 @@ export default function ImageEditor() {
           <div
             {...(currentStep === 2 ? bindLogoDrag() : {})}
             {...(currentStep === 2 ? bindLogoPinch() : {})}
-            className={`absolute ${
-              isDragging && currentStep === 2
-                ? "cursor-grabbing border-1 border-gray-500 animate-move-dash"
-                : currentStep === 2
+            className={`absolute ${isDragging && currentStep === 2
+              ? "cursor-grabbing border-1 border-gray-500 animate-move-dash"
+              : currentStep === 2
                 ? "cursor-grab"
                 : ""
-            }`}
+              }`}
             style={{
               left: position.x,
               top: position.y,
@@ -228,7 +225,7 @@ export default function ImageEditor() {
       {/* Step 1: Upload logo */}
       {currentStep === 1 && (
         <div className="mt-8">
-          <label className="cursor-pointer bg-[#fafd1e] text-black px-8 py-4 rounded-full hover:bg-yellow-300 transition text-lg font-bold flex items-center gap-2">
+          <label className="cursor-pointer bg-[#fafd1e] text-black px-8 py-4 rounded-full hover:bg-black hover:text-white transition text-lg font-bold flex items-center gap-2">
             <ChevronRightIcon />
             <span>Upload Your Logo</span>
             <input
@@ -252,7 +249,7 @@ export default function ImageEditor() {
               type="color"
               value={transparentColor}
               onChange={(e) => setTransparentColor(e.target.value)}
-              className="w-10 h-10 cursor-pointer"
+              className="w-10 h-10 cursor-pointer border border-black"
             />
           </div>
 
@@ -272,14 +269,14 @@ export default function ImageEditor() {
           <div className="flex justify-center gap-4 mt-4">
             <button
               onClick={() => setCurrentStep(1)}
-              className="text-black px-8 py-3 rounded-full hover:bg-gray-200 font-bold transition border cursor-pointer"
+              className="text-black px-8 py-3 rounded-full hover:bg-black hover:text-white font-bold transition border cursor-pointer"
             >
               Back
             </button>
             <button
               onClick={() => setCurrentStep(3)}
               disabled={loading}
-              className="bg-[#fafd1e] text-black px-8 w-1/2 cursor-pointer text-nowrap py-3 rounded-full hover:bg-yellow-300 transition font-bold disabled:bg-gray-300 disabled:text-gray-100"
+              className="bg-[#fafd1e] text-black px-8 w-1/2 cursor-pointer text-nowrap py-3 rounded-full hover:bg-black hover:text-white transition font-bold disabled:bg-gray-300 disabled:text-gray-100"
             >
               Next
             </button>
@@ -292,13 +289,13 @@ export default function ImageEditor() {
         <div className="flex justify-center gap-4 mt-8">
           <button
             onClick={() => setCurrentStep(2)}
-            className="text-black px-8 py-3 rounded-full hover:bg-gray-200 font-bold transition border cursor-pointer"
+            className="text-black px-8 py-3 rounded-full hover:bg-black hover:text-white font-bold transition border cursor-pointer"
           >
             Back
           </button>
           <button
             onClick={exportImage}
-            className="bg-[#fafd1e] text-black px-14 py-3 rounded-full hover:bg-yellow-300 font-bold transition cursor-pointer"
+            className="bg-[#fafd1e] text-black px-14 py-3 rounded-full hover:bg-black hover:text-white font-bold transition cursor-pointer"
           >
             Export Image
           </button>
