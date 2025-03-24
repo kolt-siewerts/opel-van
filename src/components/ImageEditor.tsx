@@ -16,8 +16,9 @@ export default function ImageEditor() {
   });
   const [size, setSize] = useState<number>(100);
   const [loading, setLoading] = useState<boolean>(false);
-  const [transparentColor, setTransparentColor] = useState<string>("#ffffff"); // Default to white
-  const [isDragging, setIsDragging] = useState<boolean>(false); // Track dragging state
+  const [transparentColor, setTransparentColor] = useState<string>("#ffffff");
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+  const [aspectRatio, setAspectRatio] = useState<number>(1); // Store original aspect ratio
   const imgRef = useRef<HTMLImageElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -34,7 +35,7 @@ export default function ImageEditor() {
     const reader = new FileReader();
     reader.onload = () => {
       setLogoImage(reader.result as string);
-      setCurrentStep(2); // Move to step 2 after upload
+      setCurrentStep(2);
     };
     reader.readAsDataURL(file);
   };
@@ -46,6 +47,9 @@ export default function ImageEditor() {
     img.src = imageSrc;
 
     img.onload = () => {
+      // Store original aspect ratio
+      setAspectRatio(img.width / img.height);
+
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
@@ -57,7 +61,6 @@ export default function ImageEditor() {
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const data = imageData.data;
 
-      // Convert the selected color to RGB
       const selectedColor = hexToRgb(transparentColor);
 
       for (let i = 0; i < data.length; i += 4) {
@@ -65,13 +68,12 @@ export default function ImageEditor() {
         const g = data[i + 1];
         const b = data[i + 2];
 
-        // Check if the pixel color matches the selected color
         if (
           r === selectedColor.r &&
           g === selectedColor.g &&
           b === selectedColor.b
         ) {
-          data[i + 3] = 0; // Set alpha to 0 (transparent)
+          data[i + 3] = 0;
         }
       }
 
@@ -93,7 +95,7 @@ export default function ImageEditor() {
   };
 
   const bindLogoDrag = useDrag(({ active, delta: [dx, dy] }) => {
-    setIsDragging(active); // Update dragging state
+    setIsDragging(active);
     setPosition((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
   });
 
@@ -124,15 +126,16 @@ export default function ImageEditor() {
       const scaleY = carImg.height / displayedHeight;
       const adjustedX = position.x * scaleX;
       const adjustedY = position.y * scaleY;
-      const adjustedSize = size * scaleX;
+      const adjustedWidth = size * scaleX;
+      const adjustedHeight = (size / aspectRatio) * scaleY;
 
       logoImg.onload = () => {
         ctx.drawImage(
           logoImg,
           adjustedX,
           adjustedY,
-          adjustedSize,
-          adjustedSize
+          adjustedWidth,
+          adjustedHeight
         );
         const finalImage = canvas.toDataURL("image/png");
         const link = document.createElement("a");
@@ -192,8 +195,6 @@ export default function ImageEditor() {
         {stepConfig[currentStep].description}
       </p>
 
-      {/* {loading && <p className="text-gray-400 text-sm">Processing logo...</p>} */}
-
       {/* Show car image on all steps */}
       <div className="relative w-full max-w-2xl overflow-hidden mt-6">
         <img ref={imgRef} src={STATIC_CAR_IMAGE} alt="Car" className="w-full" />
@@ -212,7 +213,7 @@ export default function ImageEditor() {
               left: position.x,
               top: position.y,
               width: `${size}px`,
-              height: `${size}px`,
+              height: `${size / aspectRatio}px`,
             }}
           >
             <img
