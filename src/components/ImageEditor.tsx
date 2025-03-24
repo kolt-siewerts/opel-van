@@ -132,13 +132,13 @@ export default function ImageEditor() {
   };
 
   return (
-    <div className="flex flex-col items-center p-16 text-gray-600 min-h-screen">
-      <h1 className="text-4xl text-center tracking-wide mb-2">
+    <div className="flex flex-col items-center p-16 text-black min-h-screen">
+      <h1 className="text-5xl text-center tracking-wide mb-4">
         {processedLogo
           ? "Drag to move, slide to resize"
           : "Promote Your Business"}
       </h1>
-      <p className="text-gray-400 text-center max-w-4/5 mt-3">
+      <p className="text-center max-w-4/5 mt-3">
         Quis cillum elit ullamco reprehenderit. Aliqua officia nisi deserunt eu
         tempor pariatur. Lorem laboris magna adipisicing culpa consectetur
         commodo dolor sit sunt dolore sit deserunt in. Reprehenderit eiusmod ut
