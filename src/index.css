@@ -2,8 +2,8 @@
 
 @font-face {
   font-family: 'stellantis';
-  src: url('/src/assets/fonts/stellantis/StellantisUI-Light.ttf');
-  font-weight: normal;
+  src: url('/fonts/stellantis/StellantisUI-Light.ttf');
+  font-weight: 300;
   font-style: normal;
 }
 
@@ -34,9 +34,11 @@ img {
   0% {
     transform: scale(1);
   }
+
   50% {
     transform: scale(1.009);
   }
+
   100% {
     transform: scale(1);
   }
