@@ -186,7 +186,7 @@ export default function ImageEditor() {
         ))}
       </div>
 
-      <h1 className="text-5xl text-center tracking-wide mb-4">
+      <h1 className="text-5xl text-center mb-4">
         {stepConfig[currentStep].title}
       </h1>
       <p className="text-center max-w-4/5 mt-3 mb-8">
