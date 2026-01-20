@@ -44,14 +44,14 @@ The entire application logic resides in `src/components/ImageEditor.tsx`. It han
 
 ### Styling
 
-- Primary brand color: `#fafd1e` (Opel yellow)
-- Custom font: Stellantis UI (loaded from `/public/fonts/`)
+- Primary brand color: `#f7ff14` (Opel yellow)
+- Custom font: Opel Next (Light/Regular/Bold loaded from `/public/fonts/`)
 - Custom animation: `animate-move-dash` for visual feedback during logo dragging
 
 ### Static Assets
 
 - Van image: `public/van-vivaro.webp` (referenced as `STATIC_CAR_IMAGE` constant)
-- Fonts: `public/fonts/stellantis/`
+- Fonts: `public/fonts/OpelNext-*.woff2`
 
 ## TypeScript Configuration
 

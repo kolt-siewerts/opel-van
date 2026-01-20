@@ -1,0 +1,25 @@
+{
+  "steps": {
+    "1": {
+      "title": "Promote Your Business",
+      "description": "Start by uploading your company logo to place on the van."
+    },
+    "2": {
+      "title": "Customize Your Logo",
+      "description": "Adjust the size and position of your logo."
+    },
+    "3": {
+      "title": "Export Your Design",
+      "description": "Download your customized van design."
+    }
+  },
+  "buttons": {
+    "uploadLogo": "Upload Your Logo",
+    "back": "Back",
+    "next": "Next",
+    "export": "Export Image"
+  },
+  "labels": {
+    "scaleLogo": "Scale the logo"
+  }
+}

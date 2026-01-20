@@ -1,0 +1,25 @@
+{
+  "steps": {
+    "1": {
+      "title": "Werben Sie für Ihr Unternehmen",
+      "description": "Laden Sie zunächst Ihr Firmenlogo hoch, um es auf dem Transporter zu platzieren."
+    },
+    "2": {
+      "title": "Passen Sie Ihr Logo an",
+      "description": "Passen Sie die Größe und Position Ihres Logos an."
+    },
+    "3": {
+      "title": "Exportieren Sie Ihr Design",
+      "description": "Laden Sie Ihr individuelles Transporter-Design herunter."
+    }
+  },
+  "buttons": {
+    "uploadLogo": "Logo hochladen",
+    "back": "Zurück",
+    "next": "Weiter",
+    "export": "Bild exportieren"
+  },
+  "labels": {
+    "scaleLogo": "Logo skalieren"
+  }
+}

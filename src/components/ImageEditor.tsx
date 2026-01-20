@@ -1,33 +1,110 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useDrag, usePinch } from "react-use-gesture";
-import ChevronRightIcon from "./ChevronRightIcon";
+import { useI18n, type Locale } from "../hooks/useI18n";
 
-const STATIC_CAR_IMAGE = "van-vivaro.webp";
+const VAN_MODELS = ["combo", "movano", "vivaro"] as const;
+type VanModel = (typeof VAN_MODELS)[number];
+const DEFAULT_MODEL: VanModel = "vivaro";
+
+const LOCALES = ["en", "de"] as const;
+const DEFAULT_LOCALE: Locale = "en";
+
+function getUrlParams(): { model: VanModel; lang: Locale } {
+  const params = new URLSearchParams(window.location.search);
+
+  const model = params.get("model");
+  const validModel = model && VAN_MODELS.includes(model as VanModel)
+    ? (model as VanModel)
+    : DEFAULT_MODEL;
+
+  const lang = params.get("lang");
+  const validLang = lang && LOCALES.includes(lang as Locale)
+    ? (lang as Locale)
+    : DEFAULT_LOCALE;
+
+  return { model: validModel, lang: validLang };
+}
 
 type Step = 1 | 2 | 3;
 
 export default function ImageEditor() {
+  const { model: vanModel, lang } = useMemo(() => getUrlParams(), []);
+  const { t } = useI18n(lang);
+  const carImage = `images/${vanModel}.webp`;
   const [currentStep, setCurrentStep] = useState<Step>(1);
   const [logoImage, setLogoImage] = useState<string | null>(null);
   const [processedLogo, setProcessedLogo] = useState<string | null>(null);
-  const [position, setPosition] = useState<{ x: number; y: number }>({
-    x: 420,
-    y: 60,
-  });
-  const [size, setSize] = useState<number>(100);
+  const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
+  const [size, setSize] = useState<number | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
-  const [transparentColor, setTransparentColor] = useState<string>("#ffffff");
   const [isDragging, setIsDragging] = useState<boolean>(false);
-  const [aspectRatio, setAspectRatio] = useState<number>(1); // Store original aspect ratio
+  const [aspectRatio, setAspectRatio] = useState<number>(1);
   const imgRef = useRef<HTMLImageElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // Process image whenever transparentColor or logoImage changes
+  // Set initial logo position and size based on image dimensions once loaded
+  useEffect(() => {
+    if (processedLogo && imgRef.current && position === null) {
+      const img = imgRef.current;
+
+      const updatePositionAndSize = () => {
+        const imgWidth = img.clientWidth;
+        const imgHeight = img.clientHeight;
+
+        // Only update if we have valid dimensions
+        if (imgWidth > 0 && imgHeight > 0) {
+          // Position logo at roughly 55% from left and 10% from top of the van image
+          setPosition({
+            x: Math.round(imgWidth * 0.55),
+            y: Math.round(imgHeight * 0.1),
+          });
+          // Set initial size relative to image width (about 15% of image width)
+          if (size === null) {
+            setSize(Math.round(imgWidth * 0.15));
+          }
+          return true;
+        }
+        return false;
+      };
+
+      // Try immediately if image is already loaded with dimensions
+      if (img.complete && updatePositionAndSize()) {
+        return;
+      }
+
+      // Use ResizeObserver to detect when image has dimensions (more reliable on mobile)
+      const resizeObserver = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          if (entry.contentRect.width > 0 && entry.contentRect.height > 0) {
+            updatePositionAndSize();
+            resizeObserver.disconnect();
+          }
+        }
+      });
+
+      resizeObserver.observe(img);
+
+      // Also listen for load event as fallback
+      const handleLoad = () => {
+        if (updatePositionAndSize()) {
+          resizeObserver.disconnect();
+        }
+      };
+      img.addEventListener("load", handleLoad);
+
+      return () => {
+        resizeObserver.disconnect();
+        img.removeEventListener("load", handleLoad);
+      };
+    }
+  }, [processedLogo, position, size]);
+
+  // Process image whenever logoImage changes
   useEffect(() => {
     if (logoImage) {
       processImage(logoImage);
     }
-  }, [transparentColor, logoImage]);
+  }, [logoImage]);
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -43,81 +120,73 @@ export default function ImageEditor() {
   const processImage = (imageSrc: string) => {
     setLoading(true);
     const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.src = imageSrc;
+    // Only set crossOrigin for non-data URLs (not needed for uploaded files)
+    if (!imageSrc.startsWith("data:")) {
+      img.crossOrigin = "anonymous";
+    }
 
     img.onload = () => {
-      // Store original aspect ratio
       setAspectRatio(img.width / img.height);
-
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-
-      canvas.width = img.width;
-      canvas.height = img.height;
-      ctx.drawImage(img, 0, 0);
-
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const data = imageData.data;
-
-      const selectedColor = hexToRgb(transparentColor);
-
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-
-        if (
-          r === selectedColor.r &&
-          g === selectedColor.g &&
-          b === selectedColor.b
-        ) {
-          data[i + 3] = 0;
-        }
-      }
-
-      ctx.putImageData(imageData, 0, 0);
-      setProcessedLogo(canvas.toDataURL("image/png"));
+      setProcessedLogo(imageSrc);
       setLoading(false);
     };
+
+    img.onerror = () => {
+      console.error("Failed to load image");
+      setLoading(false);
+    };
+
+    img.src = imageSrc;
   };
 
-  const hexToRgb = (hex: string) => {
-    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    return result
-      ? {
-        r: parseInt(result[1], 16),
-        g: parseInt(result[2], 16),
-        b: parseInt(result[3], 16),
-      }
-      : { r: 0, g: 0, b: 0 };
-  };
+  const bindLogoDrag = useDrag(
+    ({ active, delta: [dx, dy] }) => {
+      setIsDragging(active);
+      setPosition((prev) => prev ? { x: prev.x + dx, y: prev.y + dy } : prev);
+    },
+    {
+      filterTaps: true, // Prevents drag from triggering on simple taps
+      pointer: { touch: true }, // Enable touch pointer events
+    }
+  );
 
-  const bindLogoDrag = useDrag(({ active, delta: [dx, dy] }) => {
-    setIsDragging(active);
-    setPosition((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
-  });
+  const bindLogoPinch = usePinch(
+    ({ movement: [d] }) => {
+      setSize((prev) => Math.max(30, (prev ?? 100) + d));
+    },
+    {
+      pointer: { touch: true },
+    }
+  );
 
-  const bindLogoPinch = usePinch(({ movement: [d] }) => {
-    setSize((prev) => Math.max(50, prev + d));
-  });
-
-  const exportImage = () => {
-    if (!canvasRef.current || !processedLogo || !imgRef.current) return;
+  const exportImage = async () => {
+    if (!canvasRef.current || !processedLogo || !imgRef.current || !position || !size) return;
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const carImg = new Image();
-    const logoImg = new Image();
+    const loadImage = (src: string): Promise<HTMLImageElement> => {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = src;
+      });
+    };
 
-    carImg.src = STATIC_CAR_IMAGE;
-    logoImg.src = processedLogo;
+    try {
+      const [carImg, logoImg] = await Promise.all([
+        loadImage(carImage),
+        loadImage(processedLogo),
+      ]);
 
-    carImg.onload = () => {
       canvas.width = carImg.width;
       canvas.height = carImg.height;
+
+      // Fill with white background
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
       ctx.drawImage(carImg, 0, 0);
 
       const displayedWidth = imgRef.current!.clientWidth;
@@ -129,48 +198,33 @@ export default function ImageEditor() {
       const adjustedWidth = size * scaleX;
       const adjustedHeight = (size / aspectRatio) * scaleY;
 
-      logoImg.onload = () => {
-        ctx.drawImage(
-          logoImg,
-          adjustedX,
-          adjustedY,
-          adjustedWidth,
-          adjustedHeight
-        );
-        const finalImage = canvas.toDataURL("image/png");
-        const link = document.createElement("a");
-        link.href = finalImage;
-        link.download = "custom_car.png";
-        link.click();
-      };
-    };
-  };
+      ctx.drawImage(
+        logoImg,
+        adjustedX,
+        adjustedY,
+        adjustedWidth,
+        adjustedHeight
+      );
 
-  // Step titles and descriptions
-  const stepConfig = {
-    1: {
-      title: "Promote Your Business",
-      description: "Start by uploading your company logo to place on the van.",
-    },
-    2: {
-      title: "Customize Your Logo",
-      description: "Adjust the transparency and size of your logo.",
-    },
-    3: {
-      title: "Export Your Design",
-      description: "Download your customized van design.",
-    },
+      const finalImage = canvas.toDataURL("image/png");
+      const link = document.createElement("a");
+      link.href = finalImage;
+      link.download = "custom_car.png";
+      link.click();
+    } catch (error) {
+      console.error("Failed to export image:", error);
+    }
   };
 
   return (
-    <div className="flex flex-col items-center p-14 text-black min-h-screen">
+    <div className="flex flex-col items-center px-4 py-6 sm:px-[24px] sm:py-[40px] text-black min-h-screen gap-6 sm:gap-[40px]">
       {/* Step indicator */}
-      <div className="flex items-center justify-center mb-10">
+      <div className="flex items-center justify-center">
         {[1, 2, 3].map((step) => (
           <div key={step} className="flex items-center">
             <div
-              className={`size-8 rounded-full flex items-center justify-center ${currentStep >= step
-                ? "bg-[#fafd1e] text-black"
+              className={`size-8 rounded-full flex items-center justify-center font-bold ${currentStep >= step
+                ? "bg-[#f7ff14] text-black"
                 : "bg-gray-200 text-gray-500"
                 }`}
             >
@@ -178,7 +232,7 @@ export default function ImageEditor() {
             </div>
             {step < 3 && (
               <div
-                className={`w-16 h-1 ${currentStep > step ? "bg-[#fafd1e]" : "bg-gray-200"
+                className={`w-16 h-1 ${currentStep > step ? "bg-[#f7ff14]" : "bg-gray-200"
                   }`}
               />
             )}
@@ -186,37 +240,45 @@ export default function ImageEditor() {
         ))}
       </div>
 
-      <h1 className="text-5xl text-center mb-4">
-        {stepConfig[currentStep].title}
-      </h1>
-      <p className="text-center max-w-4/5 mt-3 mb-8">
-        {stepConfig[currentStep].description}
-      </p>
+      <div className="flex flex-col items-center gap-3 sm:gap-[16px] text-center max-w-[800px]">
+        <h1 className="text-2xl sm:text-[32px] leading-tight sm:leading-[40px] font-light">
+          {t(`steps.${currentStep}.title`)}
+        </h1>
+        <p className="text-sm sm:text-[16px] leading-relaxed sm:leading-[24px] tracking-[0.32px] font-light">
+          {t(`steps.${currentStep}.description`)}
+        </p>
+      </div>
 
       {/* Show car image on all steps */}
-      <div className="relative w-full max-w-2xl overflow-hidden mt-6">
-        <img ref={imgRef} src={STATIC_CAR_IMAGE} alt="Car" className="w-full" />
-        {processedLogo && currentStep > 1 && (
+      <div className="relative w-full max-w-2xl overflow-hidden">
+        <img ref={imgRef} src={carImage} alt="Car" className="w-full" />
+        {processedLogo && currentStep > 1 && position && size && (
           <div
             {...(currentStep === 2 ? bindLogoDrag() : {})}
             {...(currentStep === 2 ? bindLogoPinch() : {})}
-            className={`absolute ${isDragging && currentStep === 2
-              ? "cursor-grabbing border-1 border-gray-500 animate-move-dash"
-              : currentStep === 2
-                ? "cursor-grab"
+            className={`absolute select-none ${
+              currentStep === 2
+                ? isDragging
+                  ? "cursor-grabbing"
+                  : "cursor-grab"
                 : ""
-              }`}
+            }`}
             style={{
-              left: position.x,
-              top: position.y,
-              width: `${size}px`,
-              height: `${size / aspectRatio}px`,
+              // Offset position by padding to keep logo visually in same place
+              left: position.x - (currentStep === 2 ? 12 : 0),
+              top: position.y - (currentStep === 2 ? 12 : 0),
+              // Add padding for larger touch target on step 2
+              padding: currentStep === 2 ? "12px" : "0",
+              width: currentStep === 2 ? `${size + 24}px` : `${size}px`,
+              height: currentStep === 2 ? `${size / aspectRatio + 24}px` : `${size / aspectRatio}px`,
+              touchAction: "none", // Prevent browser handling of touch gestures
             }}
           >
             <img
               src={processedLogo}
               alt="Logo"
-              className="w-full h-full object-contain"
+              className="w-full h-full object-contain pointer-events-none"
+              draggable={false}
             />
           </div>
         )}
@@ -224,10 +286,23 @@ export default function ImageEditor() {
 
       {/* Step 1: Upload logo */}
       {currentStep === 1 && (
-        <div className="mt-8">
-          <label className="cursor-pointer bg-[#fafd1e] text-black px-8 py-4 rounded-full hover:bg-black hover:text-white transition text-lg font-bold flex items-center gap-2">
-            <ChevronRightIcon />
-            <span>Upload Your Logo</span>
+        <div>
+          <label className="cursor-pointer bg-[#f7ff14] text-black px-5 sm:px-[24px] h-11 sm:h-[48px] rounded-full hover:bg-black hover:text-white transition font-bold text-sm sm:text-[16px] leading-[16px] flex items-center gap-2">
+            <span>{t("buttons.uploadLogo")}</span>
+            <svg
+              className="size-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={2}
+              stroke="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"
+              />
+            </svg>
             <input
               type="file"
               accept="image/*"
@@ -240,45 +315,32 @@ export default function ImageEditor() {
 
       {/* Step 2: Customize logo */}
       {currentStep === 2 && (
-        <div className="flex flex-col gap-4 w-full max-w-md">
-          <div className="flex justify-center items-center gap-4">
-            <label className="text-gray-600 font-medium">
-              Choose the transparent color:
-            </label>
-            <input
-              type="color"
-              value={transparentColor}
-              onChange={(e) => setTransparentColor(e.target.value)}
-              className="w-10 h-10 cursor-pointer border border-black"
-            />
-          </div>
-
-          <div className="flex justify-center items-center gap-3">
-            <label className="text-gray-600 font-medium">Scale the logo</label>
+        <div className="flex flex-col gap-4 w-full max-w-md px-2">
+          <div className="flex flex-col sm:flex-row justify-center items-center gap-3 sm:gap-[16px]">
+            <label className="text-black text-sm sm:text-[16px] leading-[24px] font-light whitespace-nowrap">{t("labels.scaleLogo")}</label>
             <input
               type="range"
-              min="50"
-              max="200"
-              value={size}
+              min="30"
+              max="250"
+              value={size ?? 100}
               onChange={(e) => setSize(Number(e.target.value))}
-              className="flex-1 cursor-ew-resize appearance-none bg-gray-200 rounded-lg h-2 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full sm:flex-1 cursor-ew-resize appearance-none bg-gray-200 rounded-lg h-2 transition-all focus:outline-none focus:ring-2 focus:ring-[#f7ff14] [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:bg-black [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-ew-resize [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:bg-black [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-none [&::-moz-range-thumb]:cursor-ew-resize"
             />
-            <div className="text-sm text-gray-500 w-12">{size}px</div>
           </div>
 
-          <div className="flex justify-center gap-4 mt-4">
+          <div className="flex justify-center gap-3 sm:gap-[24px] mt-4">
             <button
               onClick={() => setCurrentStep(1)}
-              className="text-black px-8 py-3 rounded-full hover:bg-black hover:text-white font-bold transition border cursor-pointer"
+              className="text-black px-5 sm:px-[24px] h-11 sm:h-[48px] rounded-full hover:bg-black hover:text-white font-bold text-sm sm:text-[16px] leading-[16px] transition border border-black cursor-pointer"
             >
-              Back
+              {t("buttons.back")}
             </button>
             <button
               onClick={() => setCurrentStep(3)}
               disabled={loading}
-              className="bg-[#fafd1e] text-black px-8 w-1/2 cursor-pointer text-nowrap py-3 rounded-full hover:bg-black hover:text-white transition font-bold disabled:bg-gray-300 disabled:text-gray-100"
+              className="bg-[#f7ff14] text-black px-5 sm:px-[24px] cursor-pointer text-nowrap h-11 sm:h-[48px] rounded-full hover:bg-black hover:text-white transition font-bold text-sm sm:text-[16px] leading-[16px] disabled:bg-gray-300 disabled:text-gray-100"
             >
-              Next
+              {t("buttons.next")}
             </button>
           </div>
         </div>
@@ -286,18 +348,18 @@ export default function ImageEditor() {
 
       {/* Step 3: Export image */}
       {currentStep === 3 && (
-        <div className="flex justify-center gap-4 mt-8">
+        <div className="flex justify-center gap-3 sm:gap-[24px]">
           <button
             onClick={() => setCurrentStep(2)}
-            className="text-black px-8 py-3 rounded-full hover:bg-black hover:text-white font-bold transition border cursor-pointer"
+            className="text-black px-5 sm:px-[24px] h-11 sm:h-[48px] rounded-full hover:bg-black hover:text-white font-bold text-sm sm:text-[16px] leading-[16px] transition border border-black cursor-pointer"
           >
-            Back
+            {t("buttons.back")}
           </button>
           <button
             onClick={exportImage}
-            className="bg-[#fafd1e] text-black px-14 py-3 rounded-full hover:bg-black hover:text-white font-bold transition cursor-pointer"
+            className="bg-[#f7ff14] text-black px-5 sm:px-[24px] h-11 sm:h-[48px] rounded-full hover:bg-black hover:text-white font-bold text-sm sm:text-[16px] leading-[16px] transition cursor-pointer"
           >
-            Export Image
+            {t("buttons.export")}
           </button>
         </div>
       )}
