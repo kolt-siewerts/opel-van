@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useDrag, usePinch } from "react-use-gesture";
 import ChevronRightIcon from "./ChevronRightIcon";
 
-const STATIC_CAR_IMAGE = "van.webp";
+const STATIC_CAR_IMAGE = "van-vivaro.webp";
 
 type Step = 1 | 2 | 3;
 
